@@ -36,25 +36,71 @@ Packet Analysis
     certutil -hashfile dwm.exe MD5
     ```
 
-# Wireshark
-- [Basic](./Wireshark/Basic.md)
-  - Configuration
-  - Packet Color
-  - Endpoint
-  - Filter
-  - HTTP
+# Wireshark Basic
+## Configuration
+View 
+```bash
+Open [ Packet Details ]
+Open [ Packet Bytes ]
+```
+
+## Packet Color
+錄完封包後首先我們先看右邊的封包顏色進行初步的分析
+| 顏色 | 說明 |
+|------|------|
+| ⚪ 白色 | 一般封包，常見於第二層 Ethernet 封包，未套用特定協定色彩規則。 |
+| 🔵 淺藍色 | UDP 封包，如 DNS、DHCP、mDNS 等。 |
+| 🟣 藍紫色 | TLS/SSL 加密封包，內容加密，在沒有工具的前提下也無法直接解讀。 |
+| 🟢 綠色 | HTTP 封包（明文傳輸），可直接觀察 GET/POST 等內容。 |
+| 🔴 紅色 | 錯誤或異常封包，如 TCP RST（強制斷線）、TCP Retransmission（重傳）。 |
+| 🟡 淺黃色 | NetBIOS Name Service，網路芳鄰相關封包。 |
+| 🟧 鵝黃色（深黃偏橘） | ARP 封包（Address Resolution Protocol），區域網路內查詢/回應。 |
+| ⚫ 黑底白字 | 傳輸異常封包，因TCP Flow Control，如 `TCP Dup ACK`、`ZeroWindow`、`Window Full` 等，代表網路問題可能存在。 |
+| --- | --- |
+| ⚫ 黑色 Barcode 條紋 | 表示封包接收不連續、流量中斷或網路不穩、可能丟包。 |
+
+
+## Endpoint
+- Statistics > Endpoint > IPv4  
+- 從這邊去觀察封包的 [ 傳送:Tx ] 、 [ 接收:Rx ]
+  - 正常來說用戶的行為皆為 [ 下載 ] : Tx < Rx ， 除非是在上傳文件至雲端硬碟
+  - 使用這比較少見的行為是 [ 上傳 ] : Tx > Rx ， 排除那些可能會上傳到的網站(Google、Microsoft)，很大的機會就是駭客
+  ![](../_src/TxRx.jpg)
+- 從這邊去觀察封包的IP
+  - 但IP的相關GEO資訊如果慢慢使用WHOIS的話太多太久了
+  - [Maxmind GeoLite](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/) (關鍵字 : geoip free download)
+  - GeoLite Country 下載**Binary**格式，Wireshark適用
+  - 將圖資放在C槽底下，英文的資料夾內，解壓縮之後準備匯入
+  - Edit > Perferences > Name Resolution > MaxMind database directories
+  - **一定要點到最裡面的那層資料夾**，匯入後重新啟動Wireshark就可以看到後面有Geo圖資
+
+## Filter
+| | 欄位名稱  | 運算方式 | 資料 |
+|---|---|---|---|
+| 單項比較<br>Single Compare   | tcp.port<br>ip.addr  | ==  | 443,10.0.1200 |
+| 多項比較<br>multiple Compare | ip.geoip.asnum  | in | {8075,15169}
+| 內容比較<br>Content Compare  | tcp | contians(大小寫相異)<br>matches(大小寫相同) | "Hello"<br>"Select *"
+```bash
+{not ip.geoip.asum in{8075,15169,32934,99193462}) and tcp and tcp.flag.syn == 1
+```
+```bash
+http contains "whoami"
+http contains "eval("
+http.request.method == "POST"
+```
+
 
 
 # Network Attack
 1. 惡意程式(Malware、木馬、蠕蟲、加密勒索)，對外通訊的可能有以下三種
-  - 標準通訊協定 FTP、HTTP、HTTPS、SMTP...
-  - 偽冒通訊協定，EX.走TCP-80但並非HTTP、走TCP-443但並非HTTPS
-  - 自己定義的通訊協定，必定Port大於 1024
+   - 標準通訊協定 FTP、HTTP、HTTPS、SMTP...
+   - 偽冒通訊協定，EX.走TCP-80但並非HTTP、走TCP-443但並非HTTPS
+   - 自己定義的通訊協定，必定Port大於 1024
 2. 其他
-  - Password Attack
-  - Scan,Port Scan,網頁程式CGI Scan
-  - DDoS
-  - SQL-Injection  
+   - Password Attack
+   - Scan,Port Scan,網頁程式CGI Scan
+   - DDoS
+   - SQL-Injection  
 
 # Analysis Network Attack
 分析辦公室對**外部連線**
@@ -101,4 +147,96 @@ Packet Analysis
 - Analysis
   - [Lab 1 - VallyRAT.exe [ 對外傳輸 ]](./Malware%20Analysis/Lab%201%20-%20VallyRAT.exe%20[%20對外傳輸%20].md)
   - [Lab 2 - XWorm.exe [ USB感染 ]](./Malware%20Analysis/Lab%202%20-%20XWorm.exe%20[%20USB感染%20].md)
+
+# HTTP
+## Wireshark
+Statistics > HTTP > Packet Counter
+```bash
+http or ssdp
+# 有時候wireshark會誤判封包數量 因為ssdp跟http很類似會被誤判
+# ssdp在packet counter中會被判定成SEARCH
+```
+## HTTP Method
+```bash
+GET     : access the Web resource files
+POST    : send user data back into Web
+HEAD    : ask for accessing Web resource files
+          網頁是否存在，只要求 HTTP headers，不回傳 body
+OPTIONS : ask for checking parameters of application
+          權限能否存取，此 URL 支援哪些 HTTP 方法
+TRACE   : ask for checking loops of application
+          程式碼與設定是否正確，伺服器會原封不動回傳 request，讓開發者除錯用
+CONNECT : dynamically switch to a tunnel by proxy
+PUT     : upload file to store into server (WebDAV)
+DELETE  : erase file from server (WebDAV)
+```
+## HTTP Response Status Code
+1XX : Gerneal Host Information
+```bash
+100	Continue            繼續傳送
+101	Switching Protocol  切換協議
+```
+```bash
+除了FTP會出現大量的1XX以外，其他HTTP大量100是不正常的
+HTTP的基本設計下很少1XX，通常只接收一次就結束
+```
+2XX Execute Command Successfully 有去有回
+```bash
+200	OK
+206	Partial Content     部分回應，分段傳檔(4MB)，音樂、影片等支援續傳
+```
+3XX Resource Redirection 有去無回
+```bash
+301	Moved Permanently  永久搬移，SEO 最愛，資源永久換位址，書籤BookMark改變
+302	Found              暫時搬移，舊版叫做「Moved Temporarily」，網頁忙碌或大流量的備援
+304	Not Modified       無變更，Cache機制：若本地已有快取就不下載，基本上越多越好
+```
+4XX Client Error
+```bash
+400	Bad Request       錯誤請求，請求格式錯誤、參數缺失
+401	Unauthorized      未授權，需登入，Access Denied（驗證未通過），白名單制，多數出現於弱掃
+403	Forbidden         禁止存取，有身份但仍禁止，所有人都不可存取
+404	Not Found         找不到資源，網址錯誤、資源不存在，大量出現時屬於網頁弱掃
+```
+5XX Server Error
+```bash
+Server Config Error
+Server Bug
+WAF Block
+```
+```bash
+500	Internal Server Error 內部錯誤，Server Bug、Exception、PHP 錯誤等
+501	Not Implemented       未支援功能，Server 不支援這方法（如 PUT）
+502	Bad Gateway           錯誤閘道，Proxy、Gateway、API 回應錯誤
+503	Service Unavailable   服務暫停，Server 過載或維護中
+```
+
+# Wireshark Packet Analysis
+先看左半邊4種基礎的Protocol協定，因為每個基礎協定的行為皆不同
+```
+TCP
+會受ROUTE的影響改變行為
+編號不連續 會需要加上封包長度
+Wireshark封包點兩下如果是黃色一條出現 代表這個封包可能有點問題
+只要有兩個 中間會有一個以上的gateway 以及3way handshake 就不可能被偽冒
+
+UDP
+會受ROUTE的影響改變行為
+
+ICMP
+
+ARP
+封包不會上INTERNET
+```
+再去看Port
+```
+Port 
+小於1024一定是Server Port
+內網通訊雙方當中固定的Port也會是Server Port
+進而就可以判斷CLIENT
+```
+封包案例分析
+- [HTTP](./Wireshark%20Packet%20Analysis/HTTP.md)
+- [Other](./Wireshark%20Packet%20Analysis/Other.md)
+
 
