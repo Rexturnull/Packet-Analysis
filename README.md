@@ -209,9 +209,11 @@ WAF Block
 501	Not Implemented       未支援功能，Server 不支援這方法（如 PUT）
 502	Bad Gateway           錯誤閘道，Proxy、Gateway、API 回應錯誤
 503	Service Unavailable   服務暫停，Server 過載或維護中
+504 Gateway Timeout       伺服器上的服務沒有回應。
 ```
 
 # Wireshark Packet Analysis
+## Analysis Step
 先看左半邊4種基礎的Protocol協定，因為每個基礎協定的行為皆不同
 ```
 TCP
@@ -235,8 +237,86 @@ Port
 內網通訊雙方當中固定的Port也會是Server Port
 進而就可以判斷CLIENT
 ```
-封包案例分析
-- [HTTP](./Wireshark%20Packet%20Analysis/HTTP.md)
-- [Other](./Wireshark%20Packet%20Analysis/Other.md)
+## Protocol Time Line
+<img src="./_src/protocoltimeline.jpg" alt="BEC" width="800"/>
+
+- 🔵 藍色協定
+  - **支援型的協定** (Telnet、SMTP、POP、FTP、IMAP)
+  - 早期 ARPANET（美國國防部 DARPA 資助）是為**軍事與科學研究開發的**，其中 Telnet、SMTP、FTP 等就是當時設計的核心協定，與冷戰軍事需求有關
+  - Server 會先送Hello Session，去確認雙方的版本、Hostname本機相關資訊，尤其像 FTP、Telnet 在建立連線時都會先交換版本與認證資訊
+  - 就算是有跳板還是會看到使用者真實來源，早期協定大多 不支援代理遮蔽與加密
+  - Windows 10 以後的 hostname 在部分環境下（如 DHCP、AD）會隨機命名或混雜字元
+- 🟢 綠色協定
+  - **效率型協定** (HTTP、HTTPS、MMS、RTP、RTSP、VoIP、UPnP)
+  - 以UDP 為主 的標註，像 RTP/VoIP/UPnP 多採用 UDP 以提升即時性
+  - HTTP Keep-Alive 連線持續技術，表現出效率提升
+- 🔴 紅色協定
+  - **工控協定與通訊** (Modbus、DNP、CAN Bus)
+  - 中油、自來水、台電、化工等控制系統常用
+  - 用於遠端監控與工業控制（油、水、電、壓力、閥門等）
+  - 多數無認證、無加密，設計時不考慮資安
+  - 一旦被入侵就是大條的，可能造成實體損害或人命危險
+  - 但台灣沒有開這類的認證，跟人命掛鉤的，這個專業一定貴
+
+- 🟠 橘色協定
+  - **商用資料交換/分享** (SMB、SQL)
+
+## HTTP
+- [ [HTTP](./Wireshark%20Packet%20Analysis/HTTP.md) ]
+- HTTP Local Cache
+- HTTP Proxy
+- HTTP SQL Injection - 1
+- HTTP SQL Injection - 2
+- HTTP Download File
+- HTTPS
+- HTTP CGI SCAN - 1
+- HTTP CGI SCAN - 2
+
+## Email Services
+- [ [Email Services](./Wireshark%20Packet%20Analysis/Email%20Services.md) ]
+- Business Email Compromis
+- SMTP
+- POP3
+- IMAP
+
+## Special Situation
+- [ [Special Situation](./Wireshark%20Packet%20Analysis/Special%20Situation.md) ]
+- Port Scan - 1
+- Port Scan - 2
+- Worm Infection
+- Trojan Proxy
+- ARP Spoofing
+
+# Common Services
+- [ [Common Services](./Wireshark%20Packet%20Analysis/Common%20Services.md) ]
+- CIFS/SMB
+- SQL
+- Telnet
+- FTP
+- SSH
+- Android
+- UPnP
 
 
+# Wireshark HTTPS Decrypt
+如何記錄電腦中的金鑰
+```bash
+# https://blog.csdn.net/qq_44675969/article/details/112078231
+先關閉目前的瀏覽器，需要完全關閉
+
+# 環境變數 設定使用者變數
+SSLKEYLOGFILE
+C:\ProgramData\sslkey.log
+
+# 查看現有環境變數 CMD
+set
+
+# 測試
+找個HTTPS的去瀏覽，並錄製封包，拿到wiresheak使用HTTP、HTTP2發現封包都還沒被解密
+
+# 解密封包
+Edit > Perferences > Protocol > TLS > (Pre)-Master-Secret log filename > 把 sslkey.log 匯入
+
+# 匯入之後
+Filter "HTTP or HTTP2" 就可以看到封包內容，HTTP2代表被解密過的封包
+```

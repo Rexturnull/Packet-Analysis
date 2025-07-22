@@ -49,25 +49,8 @@ WMV : 無損
 為 SQL Injection
 ```
 ![](../_src/65.jpg)
-
-
-
-# Port Scan - 1
-![](../_src/68.jpg)
-# UPnP
-![](../_src/70.jpg)
-# Port Scan - 2
-![](../_src/181.jpg)
-![](../_src/184.jpg)
-# Worm Infection
+# HTTP CGI SCAN - 2
 ```
-類似Port Scan 但不是，是病毒Worm感染中毒
-IP一直在變，但用固定的port跟不同的IP在連線
-因為PORT程式碼裡面寫的是固定的，不知道目標有沒有開特定PORT
-所以就一台一台去試，Port-135為RPC 
-
-# 案例分享
-https://unit42.paloaltonetworks.com/lucifer-new-cryptojacking-and-ddos-hybrid-malware/
-QQMusic
+大量404在不同的網頁名稱，屬於CGI SCAN弱點掃描，61.222.173.165的那個是攻擊者
 ```
-![](../_src/185.jpg)
+![](../_src/196.jpg)
